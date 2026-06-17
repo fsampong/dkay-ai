@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Dkay AI"/>
+  <title>Dkay × Claude</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --bg:#07071a; --purple:#7c3aed; --violet:#a855f7; --cyan:#06b6d4;
+      --blue:#3b82f6; --pink:#ec4899; --gold:#C9A84C; --green:#4ade80;
+      --arsenal:#EF0107; --text:#f0f0ff; --muted:rgba(240,240,255,0.4);
+      --glass:rgba(255,255,255,0.05); --glass-border:rgba(255,255,255,0.1);
+    }
+    html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:'Space Grotesk',sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;}
+    body.light{--bg:#f0f4ff;--text:#0a0a2a;--muted:rgba(10,10,42,0.45);--glass:rgba(0,0,0,0.04);--glass-border:rgba(0,0,0,0.1);}
+    body.light canvas#bg{opacity:0.12;}
+    canvas#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;}
+    .grain{position:fixed;inset:0;z-index:1;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");background-size:160px;opacity:0.7;}
+    .scan{position:fixed;left:0;right:0;height:1px;z-index:2;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(124,58,237,0.5),rgba(6,182,212,0.5),transparent);animation:scan 7s linear infinite;}
+    @keyframes scan{0%{top:-2px;opacity:0}5%{opacity:1}95%{opacity:0.3}100%{top:100vh;opacity:0}}
+    .particles{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden;}
+    .particle{position:absolute;border-radius:50%;animation:float-up linear infinite;opacity:0;}
+    @keyframes float-up{0%{transform:translateY(0) scale(0);opacity:0}10%{opacity:1}90%{opacity:0.5}100%{transform:translateY(-100vh) scale(1.5);opacity:0}}
+    .swiper{position:relative;z-index:3;width:100vw;height:100vh;overflow:hidden;}
+    .pages{display:flex;width:400vw;height:100%;transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);}
+    .page{width:100vw;height:100%;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;padding:env(safe-area-inset-top,48px) 18px env(safe-area-inset-bottom,60px);-webkit-overflow-scrolling:touch;}
+    .page::-webkit-scrollbar{display:none;}
+    .dots{position:fixed;bottom:calc(env(safe-area-inset-bottom,20px) + 6px);left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:10;}
+    .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);transition:all 0.3s ease;cursor:pointer;}
+    .dot.active{width:18px;border-radius:3px;background:var(--violet);}
+    .topbar{width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+    .theme-btn{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:5px 11px;font-size:11px;color:var(--muted);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+    .time{font-size:58px;font-weight:300;letter-spacing:-0.03em;background:linear-gradient(160deg,#fff 40%,#a78bfa 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;text-align:center;}
+    .date-str{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-top:3px;text-align:center;}
+    .weather-bar{display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:6px 14px;margin-top:8px;backdrop-filter:blur(10px);}
+    .weather-temp{font-size:14px;font-weight:600;color:var(--cyan);}
+    .weather-text{font-size:12px;color:var(--muted);}
+    .orb-section{display:flex;flex-direction:column;align-items:center;margin-top:14px;gap:6px;}
+    .orb-wrap{position:relative;width:76px;height:76px;}
+    .orb-ring{position:absolute;inset:-10px;border-radius:50%;border:1px solid rgba(124,58,237,0.3);animation:ring-pulse 3s ease-in-out infinite;}
+    .orb-ring-2{inset:-22px;border-color:rgba(6,182,212,0.15);animation-delay:1.2s;}
+    @keyframes ring-pulse{0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.07);opacity:1}}
+    .orb{width:76px;height:76px;border-radius:50%;background:conic-gradient(from 200deg,#7c3aed 0%,#a855f7 22%,#06b6d4 48%,#3b82f6 68%,#7c3aed 100%);box-shadow:0 0 30px rgba(124,58,237,0.5),0 0 60px rgba(168,85,247,0.2);animation:orb-spin 9s linear infinite,orb-breathe 4s ease-in-out infinite;position:relative;cursor:pointer;}
+    .orb::after{content:'';position:absolute;inset:10px;border-radius:50%;background:radial-gradient(circle at 36% 32%,rgba(255,255,255,0.2) 0%,transparent 60%);}
+    @keyframes orb-spin{from{filter:hue-rotate(0deg)}to{filter:hue-rotate(360deg)}}
+    @keyframes orb-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+    .greeting{font-size:11px;color:var(--muted);letter-spacing:0.06em;}
+    .name{font-size:24px;font-weight:700;background:linear-gradient(135deg,#fff 30%,#a78bfa 65%,#38bdf8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .chat-section{width:100%;margin-top:12px;}
+    .chat-box{background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;overflow:hidden;backdrop-filter:blur(14px);}
+    .chat-messages{max-height:120px;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:7px;}
+    .chat-messages::-webkit-scrollbar{display:none;}
+    .msg{font-size:12px;line-height:1.5;padding:7px 10px;border-radius:10px;max-width:88%;}
+    .msg.user{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;align-self:flex-end;}
+    .msg.ai{background:rgba(255,255,255,0.07);color:var(--text);align-self:flex-start;border:1px solid var(--glass-border);}
+    .msg.typing{color:var(--muted);font-style:italic;}
+    .chat-input-row{display:flex;gap:8px;padding:8px;border-top:1px solid var(--glass-border);}
+    .chat-input{flex:1;background:transparent;border:none;outline:none;font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--text);padding:4px 6px;}
+    .chat-input::placeholder{color:var(--muted);}
+    .chat-send{background:linear-gradient(135deg,#7c3aed,#06b6d4);border:none;border-radius:8px;padding:7px 12px;color:#fff;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+    .countdown-card{width:100%;background:var(--glass);border:1px solid rgba(201,168,76,0.25);border-radius:16px;padding:11px 16px;margin-top:10px;backdrop-filter:blur(10px);}
+    .countdown-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:7px;}
+    .countdown-nums{display:flex;gap:10px;justify-content:center;}
+    .cd-unit{display:flex;flex-direction:column;align-items:center;gap:2px;}
+    .cd-val{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:var(--gold);}
+    .cd-lbl{font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);}
+    .grid-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-top:12px;align-self:flex-start;padding-left:2px;}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;margin-top:7px;}
+    .grid-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:11px 5px;border-radius:14px;background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(14px);cursor:pointer;text-decoration:none;color:var(--text);transition:transform 0.12s ease;-webkit-tap-highlight-color:transparent;}
+    .grid-btn:active{transform:scale(0.93);}
+    .grid-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+    .grid-text{font-size:9px;font-weight:500;color:var(--muted);text-align:center;}
+    .icon-claude{background:linear-gradient(135deg,#7c3aed,#06b6d4);}
+    .icon-fs{background:linear-gradient(135deg,#0f0f0f,#C9A84C);border:1px solid rgba(201,168,76,0.3);}
+    .icon-gkcs{background:linear-gradient(135deg,#4B0082,#C9A84C);}
+    .icon-shopify{background:linear-gradient(135deg,#004c3f,#96bf48);}
+    .icon-klaviyo{background:linear-gradient(135deg,#1a1a2e,#f5a623);}
+    .icon-supabase{background:linear-gradient(135deg,#1c1c1c,#3ecf8e);}
+    .icon-caresync{background:linear-gradient(135deg,#0ea5a0,#1e3a5f);}
+    .icon-mail{background:linear-gradient(135deg,#1e40af,#3b82f6);}
+    .icon-cal{background:linear-gradient(135deg,#be123c,#f43f5e);}
+    .notes-section{width:100%;margin-top:10px;}
+    .notes-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+    .notes-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);}
+    .notes-clear{font-size:10px;background:none;border:none;cursor:pointer;color:#f87171;}
+    .notes-input{width:100%;background:var(--glass);border:1px solid var(--glass-border);border-radius:12px;padding:10px 12px;font-family:'Space Grotesk',sans-serif;font-size:12px;color:var(--text);resize:none;outline:none;min-height:65px;backdrop-filter:blur(10px);}
+    .notes-input::placeholder{color:var(--muted);}
+    .page-title{font-size:11px;font-family:'Space Mono',monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;align-self:flex-start;}
+    .section-card{width:100%;background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:12px;backdrop-filter:blur(10px);margin-top:10px;}
+    .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+    .section-title{font-size:11px;font-weight:600;letter-spacing:0.06em;}
+    .refresh-btn{font-size:11px;background:none;border:none;cursor:pointer;color:var(--cyan);-webkit-tap-highlight-color:transparent;padding:4px 8px;}
+    .arsenal-hero{width:100%;background:linear-gradient(135deg,rgba(239,1,7,0.15),rgba(156,0,0,0.08));border:1px solid rgba(239,1,7,0.25);border-radius:18px;padding:14px;backdrop-filter:blur(14px);margin-top:6px;}
+    .arsenal-top{display:flex;align-items:center;margin-bottom:10px;}
+    .arsenal-name{font-size:16px;font-weight:700;color:#EF0107;letter-spacing:0.05em;}
+    .arsenal-badge{font-size:28px;margin-right:8px;}
+    .match-row{background:rgba(239,1,7,0.08);border:1px solid rgba(239,1,7,0.15);border-radius:10px;padding:8px 10px;margin-top:6px;}
+    .match-label{font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(239,1,7,0.7);margin-bottom:4px;}
+    .match-teams{font-size:13px;font-weight:600;color:var(--text);}
+    .match-meta{font-size:10px;color:var(--muted);margin-top:2px;}
+    .match-score{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:#EF0107;}
+    .score-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--glass-border);font-size:11px;}
+    .score-row:last-child{border-bottom:none;}
+    .score-teams{color:var(--text);flex:1;font-size:11px;}
+    .score-val{font-family:'Space Mono',monospace;color:var(--cyan);font-weight:700;font-size:12px;padding:0 8px;}
+    .score-status{font-size:9px;color:var(--muted);text-align:right;min-width:36px;}
+    .table-row{display:flex;align-items:center;padding:4px 2px;border-bottom:1px solid var(--glass-border);font-size:10px;}
+    .table-row:last-child{border-bottom:none;}
+    .table-pos{width:18px;color:var(--muted);font-family:'Space Mono',monospace;font-size:10px;}
+    .table-team{flex:1;font-weight:500;}
+    .table-pts{font-family:'Space Mono',monospace;color:var(--cyan);font-weight:700;width:28px;text-align:right;}
+    .table-gd{color:var(--muted);width:28px;text-align:right;font-size:10px;}
+    .arsenal-row{background:rgba(239,1,7,0.08);border-radius:6px;}
+    .fs-hero{width:100%;background:linear-gradient(135deg,rgba(15,15,15,0.8),rgba(201,168,76,0.1));border:1px solid rgba(201,168,76,0.2);border-radius:18px;padding:18px;margin-top:6px;backdrop-filter:blur(14px);text-align:center;}
+    .fs-title{font-size:20px;font-weight:700;letter-spacing:0.05em;background:linear-gradient(135deg,#fff 30%,#C9A84C 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .fs-sub{font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,168,76,0.6);margin-top:3px;}
+    .fs-stat{margin-top:12px;display:flex;justify-content:center;gap:20px;}
+    .fs-stat-item{display:flex;flex-direction:column;align-items:center;}
+    .fs-stat-val{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--gold);}
+    .fs-stat-lbl{font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);}
+    .gkcs-hero{width:100%;background:linear-gradient(135deg,rgba(75,0,130,0.3),rgba(201,168,76,0.08));border:1px solid rgba(75,0,130,0.3);border-radius:18px;padding:18px;margin-top:6px;backdrop-filter:blur(14px);text-align:center;}
+    .gkcs-title{font-size:18px;font-weight:700;background:linear-gradient(135deg,#EDE7F6 30%,#C9A84C 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .gkcs-sub{font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(237,231,246,0.4);margin-top:3px;}
+    .info-row{display:flex;gap:8px;margin-top:10px;width:100%;}
+    .info-chip{flex:1;background:var(--glass);border:1px solid var(--glass-border);border-radius:12px;padding:9px 6px;text-align:center;}
+    .info-chip-val{font-size:12px;font-weight:600;color:#EDE7F6;}
+    .info-chip-lbl{font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+    .cta-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px 24px;border-radius:100px;border:none;cursor:pointer;text-decoration:none;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fff;background:linear-gradient(135deg,#7c3aed 0%,#a855f7 50%,#06b6d4 100%);box-shadow:0 0 20px rgba(124,58,237,0.4);transition:transform 0.12s ease;-webkit-tap-highlight-color:transparent;margin-top:10px;}
+    .cta-btn:active{transform:scale(0.96);}
+    .pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);animation:dot-pulse 2s ease-in-out infinite;flex-shrink:0;}
+    @keyframes dot-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.75)}}
+    .status-bar{margin-top:auto;padding:12px 0 4px;display:flex;align-items:center;justify-content:center;gap:6px;}
+    .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:dot-pulse 2s ease-in-out infinite;}
+    .status-text{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(240,240,255,0.2);}
+    .loading-text{font-size:11px;color:var(--muted);text-align:center;padding:8px;}
+  </style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="grain"></div>
+<div class="scan"></div>
+<div class="particles" id="particles"></div>
+
+<div class="swiper" id="swiper">
+  <div class="pages" id="pages">
+
+    <!-- PAGE 1: HOME -->
+    <div class="page">
+      <div class="topbar">
+        <span class="date-str" id="datestr">Loading...</span>
+        <button class="theme-btn" onclick="toggleTheme()">☀ / ☾</button>
+      </div>
+      <div class="time" id="clock">00:00</div>
+      <div class="weather-bar">
+        <span id="wicon">🌤</span>&nbsp;
+        <span class="weather-text">Luton</span>&nbsp;
+        <span class="weather-temp" id="wtemp">--°C</span>&nbsp;
+        <span class="weather-text" id="wdesc"></span>
+      </div>
+      <div class="orb-section">
+        <div class="orb-wrap">
+          <div class="orb-ring orb-ring-2"></div>
+          <div class="orb-ring"></div>
+          <div class="orb" onclick="focusChat()"></div>
+        </div>
+        <p class="greeting">Welcome back,</p>
+        <h1 class="name">Dkay</h1>
+      </div>
+      <div class="chat-section">
+        <div class="chat-box">
+          <div class="chat-messages" id="chatMessages">
+            <div class="msg ai">Hey Dkay 👋 What do you need?</div>
+          </div>
+          <div class="chat-input-row">
+            <input class="chat-input" id="chatInput" placeholder="Ask Claude anything..." onkeydown="if(event.key==='Enter')sendChat()"/>
+            <button class="chat-send" onclick="sendChat()">→</button>
+          </div>
+        </div>
+      </div>
+      <div class="countdown-card">
+        <div class="countdown-label">⚡ FS Drop 001 · Oct 2026</div>
+        <div class="countdown-nums">
+          <div class="cd-unit"><span class="cd-val" id="cd-d">--</span><span class="cd-lbl">Days</span></div>
+          <div class="cd-unit"><span class="cd-val" id="cd-h">--</span><span class="cd-lbl">Hrs</span></div>
+          <div class="cd-unit"><span class="cd-val" id="cd-m">--</span><span class="cd-lbl">Min</span></div>
+          <div class="cd-unit"><span class="cd-val" id="cd-s">--</span><span class="cd-lbl">Sec</span></div>
+        </div>
+      </div>
+      <p class="grid-label">Quick Launch</p>
+      <div class="grid">
+        <a class="grid-btn" href="https://claude.ai" target="_blank"><div class="grid-icon icon-claude">🤖</div><span class="grid-text">Claude AI</span></a>
+        <a class="grid-btn" href="https://caresync-gkcs.vercel.app" target="_blank"><div class="grid-icon icon-caresync">🏥</div><span class="grid-text">CareSync</span></a>
+        <a class="grid-btn" href="https://calendar.google.com" target="_blank"><div class="grid-icon icon-cal">📅</div><span class="grid-text">Calendar</span></a>
+        <a class="grid-btn" href="mailto:info@gatekeeperscare.co.uk"><div class="grid-icon icon-mail">✉️</div><span class="grid-text">GKCS Mail</span></a>
+        <a class="grid-btn" href="https://keep.google.com" target="_blank"><div class="grid-icon icon-supabase">📝</div><span class="grid-text">Notes</span></a>
+        <a class="grid-btn" href="https://wa.me/" target="_blank"><div class="grid-icon" style="background:linear-gradient(135deg,#075E54,#25D366);">💬</div><span class="grid-text">WhatsApp</span></a>
+      </div>
+      <div class="notes-section">
+        <div class="notes-header">
+          <span class="notes-label">📌 Quick Note</span>
+          <button class="notes-clear" onclick="clearNote()">Clear</button>
+        </div>
+        <textarea class="notes-input" id="notepad" placeholder="Jot something down..." oninput="saveNote()"></textarea>
+      </div>
+      <div class="status-bar"><div class="status-dot"></div><span class="status-text">Dkay AI · Always On</span></div>
+    </div>
+
+    <!-- PAGE 2: FEARLESS SOCIETY -->
+    <div class="page">
+      <span class="page-title">Fearless Society</span>
+      <div class="fs-hero">
+        <div class="fs-title">FEARLESS SOCIETY</div>
+        <div class="fs-sub">Drop 001 · Oct 2026</div>
+        <div class="fs-stat">
+          <div class="fs-stat-item"><span class="fs-stat-val">500+</span><span class="fs-stat-lbl">Waitlist</span></div>
+          <div class="fs-stat-item"><span class="fs-stat-val">3</span><span class="fs-stat-lbl">Tiers</span></div>
+          <div class="fs-stat-item"><span class="fs-stat-val" id="fs-days">--</span><span class="fs-stat-lbl">Days Left</span></div>
+        </div>
+      </div>
+      <div class="countdown-card" style="margin-top:10px;">
+        <div class="countdown-label">⚡ Drop 001 Countdown</div>
+        <div class="countdown-nums">
+          <div class="cd-unit"><span class="cd-val" id="cd-d2">--</span><span class="cd-lbl">Days</span></div>
+          <div class="cd-unit"><span class="cd-val" id="cd-h2">--</span><span class="cd-lbl">Hrs</span></div>
+          <div class="cd-unit"><span class="cd-val" id="cd-m2">--</span><span class="cd-lbl">Min</span></div>
+          <div class="cd-unit"><span class="cd-val" id="cd-s2">--</span><span class="cd-lbl">Sec</span></div>
+        </div>
+      </div>
+      <p class="grid-label">FS Tools</p>
+      <div class="grid">
+        <a class="grid-btn" href="https://fearlesssociety.uk" target="_blank"><div class="grid-icon icon-fs">👑</div><span class="grid-text">Website</span></a>
+        <a class="grid-btn" href="https://www.klaviyo.com" target="_blank"><div class="grid-icon icon-klaviyo">📧</div><span class="grid-text">Klaviyo</span></a>
+        <a class="grid-btn" href="https://admin.shopify.com" target="_blank"><div class="grid-icon icon-shopify">🛍</div><span class="grid-text">Shopify</span></a>
+        <a class="grid-btn" href="https://www.canva.com/d/3qCuhrupkO_T_eR" target="_blank"><div class="grid-icon icon-claude">🎨</div><span class="grid-text">Canva</span></a>
+        <a class="grid-btn" href="https://claude.ai/new" target="_blank"><div class="grid-icon icon-claude">🤖</div><span class="grid-text">AI Help</span></a>
+        <a class="grid-btn" href="mailto:info@fearlesssociety.uk"><div class="grid-icon icon-mail">✉️</div><span class="grid-text">FS Mail</span></a>
+      </div>
+      <div class="status-bar"><div class="status-dot" style="background:#C9A84C;box-shadow:0 0 6px #C9A84C;"></div><span class="status-text">Fearless Society · Drop 001</span></div>
+    </div>
+
+    <!-- PAGE 3: GKCS -->
+    <div class="page">
+      <span class="page-title">Gatekeepers Care Solutions</span>
+      <div class="gkcs-hero">
+        <div class="gkcs-title">GATEKEEPERS CARE</div>
+        <div class="gkcs-sub">CQC Registered · Luton</div>
+        <div class="info-row">
+          <div class="info-chip"><div class="info-chip-val">CQC</div><div class="info-chip-lbl">Registered</div></div>
+          <div class="info-chip"><div class="info-chip-val">Dom</div><div class="info-chip-lbl">& SL Care</div></div>
+          <div class="info-chip"><div class="info-chip-val">LU2</div><div class="info-chip-lbl">Luton</div></div>
+        </div>
+      </div>
+      <p class="grid-label">GKCS Tools</p>
+      <div class="grid">
+        <a class="grid-btn" href="https://caresync-gkcs.vercel.app" target="_blank"><div class="grid-icon icon-caresync">🏥</div><span class="grid-text">CareSync</span></a>
+        <a class="grid-btn" href="https://supabase.com/dashboard/project/tykotzpplodxydotuoiw" target="_blank"><div class="grid-icon icon-supabase">🗄</div><span class="grid-text">Supabase</span></a>
+        <a class="grid-btn" href="mailto:info@gatekeeperscare.co.uk"><div class="grid-icon icon-mail">✉️</div><span class="grid-text">Admin Mail</span></a>
+        <a class="grid-btn" href="mailto:hr@gatekeeperscare.co.uk"><div class="grid-icon icon-gkcs">👥</div><span class="grid-text">HR Mail</span></a>
+        <a class="grid-btn" href="https://www.cqc.org.uk" target="_blank"><div class="grid-icon icon-gkcs">📋</div><span class="grid-text">CQC Portal</span></a>
+        <a class="grid-btn" href="https://claude.ai/new" target="_blank"><div class="grid-icon icon-claude">🤖</div><span class="grid-text">AI Help</span></a>
+      </div>
+      <div class="notes-section">
+        <div class="notes-header">
+          <span class="notes-label">📌 GKCS Note</span>
+          <button class="notes-clear" onclick="clearGKCSNote()">Clear</button>
+        </div>
+        <textarea class="notes-input" id="gkcsNotepad" placeholder="Staff notes, reminders, actions..." oninput="saveGKCSNote()"></textarea>
+      </div>
+      <a class="cta-btn" href="https://caresync-gkcs.vercel.app" target="_blank"><div class="pulse-dot"></div>Open CareSync</a>
+      <div class="status-bar"><div class="status-dot" style="background:#a78bfa;box-shadow:0 0 6px #a78bfa;"></div><span class="status-text">GKCS · CQC Provider</span></div>
+    </div>
+
+    <!-- PAGE 4: SPORTS -->
+    <div class="page">
+      <span class="page-title">Sports Centre</span>
+
+      <div class="arsenal-hero">
+        <div class="arsenal-top">
+          <span class="arsenal-badge">🔴</span>
+          <div><div class="arsenal-name">ARSENAL FC</div><div style="font-size:9px;color:rgba(239,1,7,0.6);letter-spacing:0.1em;">THE GUNNERS</div></div>
+          <button class="refresh-btn" style="margin-left:auto;color:#EF0107;" onclick="loadArsenal()">↻ Refresh</button>
+        </div>
+        <div id="arsenalNext" class="match-row">
+          <div class="match-label">Next Match</div>
+          <div class="loading-text">Loading...</div>
+        </div>
+        <div id="arsenalLast" class="match-row" style="margin-top:6px;">
+          <div class="match-label">Last Result</div>
+          <div class="loading-text">Loading...</div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-head"><span class="section-title">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League Table</span><button class="refresh-btn" onclick="loadPLTable()">↻ Refresh</button></div>
+        <div id="plTable"><div class="loading-text">Loading...</div></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-head"><span class="section-title">⚽ PL Matches Today</span><button class="refresh-btn" onclick="loadPLMatches()">↻</button></div>
+        <div id="plMatches"><div class="loading-text">Loading...</div></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-head"><span class="section-title">⭐ Champions League</span><button class="refresh-btn" onclick="loadCL()">↻</button></div>
+        <div id="clMatches"><div class="loading-text">Loading...</div></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-head"><span class="section-title">🌍 World Cup 2026</span><button class="refresh-btn" onclick="loadWC()">↻</button></div>
+        <div id="wcMatches"><div class="loading-text">Loading...</div></div>
+      </div>
+
+      <div class="status-bar"><div class="status-dot" style="background:#EF0107;box-shadow:0 0 6px #EF0107;"></div><span class="status-text">Sports · Live Data</span></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="dots">
+  <div class="dot active" onclick="goTo(0)"></div>
+  <div class="dot" onclick="goTo(1)"></div>
+  <div class="dot" onclick="goTo(2)"></div>
+  <div class="dot" onclick="goTo(3)"></div>
+</div>
+
+<script>
+// All API calls go through our Vercel proxy — no CORS issues
+async function football(path) {
+  const r = await fetch(`/api/football?path=${encodeURIComponent(path)}`);
+  return r.json();
+}
+
+// Swipe
+let curPage=0, startX=0;
+const pagesEl=document.getElementById('pages');
+const dots=document.querySelectorAll('.dot');
+function goTo(n){
+  curPage=n; pagesEl.style.transform=`translateX(-${n*100}vw)`;
+  dots.forEach((d,i)=>d.classList.toggle('active',i===n));
+  if(n===3) loadSports();
+}
+document.getElementById('swiper').addEventListener('touchstart',e=>{startX=e.touches[0].clientX;},{passive:true});
+document.getElementById('swiper').addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-startX;
+  if(Math.abs(dx)>50){if(dx<0&&curPage<3)goTo(curPage+1);else if(dx>0&&curPage>0)goTo(curPage-1);}
+},{passive:true});
+
+// Theme
+function toggleTheme(){document.body.classList.toggle('light');localStorage.setItem('theme',document.body.classList.contains('light')?'light':'dark');}
+if(localStorage.getItem('theme')==='light')document.body.classList.add('light');
+
+// Clock
+function tick(){
+  const now=new Date();
+  document.getElementById('clock').textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('datestr').textContent=`${days[now.getDay()]} · ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+}
+tick(); setInterval(tick,10000);
+
+// Countdown
+function updateCountdown(){
+  const diff=new Date('2026-10-01T00:00:00')-new Date();
+  if(diff<=0)return;
+  const d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000);
+  const m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+  [['cd-d',d],['cd-h',h],['cd-m',m],['cd-s',s],['cd-d2',d],['cd-h2',h],['cd-m2',m],['cd-s2',s]].forEach(([id,v])=>{
+    const el=document.getElementById(id);if(el)el.textContent=String(v).padStart(2,'0');
+  });
+  const fd=document.getElementById('fs-days');if(fd)fd.textContent=d;
+}
+updateCountdown(); setInterval(updateCountdown,1000);
+
+// Weather
+async function loadWeather(){
+  try{
+    const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=51.8787&longitude=-0.4200&current_weather=true&timezone=Europe/London');
+    const d=await r.json();
+    const temp=Math.round(d.current_weather.temperature),code=d.current_weather.weathercode;
+    const icons={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',51:'🌦',61:'🌧',63:'🌧',80:'🌦',95:'⛈'};
+    const descs={0:'Clear',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Foggy',51:'Drizzle',61:'Light rain',63:'Moderate rain',80:'Showers',95:'Thunderstorm'};
+    document.getElementById('wicon').textContent=icons[code]||'🌤';
+    document.getElementById('wtemp').textContent=`${temp}°C`;
+    document.getElementById('wdesc').textContent=descs[code]||'';
+  }catch(e){}
+}
+loadWeather();
+
+// Notes
+const notepad=document.getElementById('notepad');
+const gkcsNotepad=document.getElementById('gkcsNotepad');
+notepad.value=localStorage.getItem('dkay-note')||'';
+gkcsNotepad.value=localStorage.getItem('gkcs-note')||'';
+function saveNote(){localStorage.setItem('dkay-note',notepad.value);}
+function clearNote(){notepad.value='';localStorage.removeItem('dkay-note');}
+function saveGKCSNote(){localStorage.setItem('gkcs-note',gkcsNotepad.value);}
+function clearGKCSNote(){gkcsNotepad.value='';localStorage.removeItem('gkcs-note');}
+
+// AI Chat
+const chatMessages=document.getElementById('chatMessages');
+const chatInput=document.getElementById('chatInput');
+function focusChat(){chatInput.focus();}
+async function sendChat(){
+  const msg=chatInput.value.trim();if(!msg)return;
+  chatInput.value='';
+  const uDiv=document.createElement('div');uDiv.className='msg user';uDiv.textContent=msg;chatMessages.appendChild(uDiv);
+  const tDiv=document.createElement('div');tDiv.className='msg typing ai';tDiv.textContent='Thinking...';chatMessages.appendChild(tDiv);
+  chatMessages.scrollTop=chatMessages.scrollHeight;
+  try{
+    const res=await fetch('/api/chat',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:msg})
+    });
+    const data=await res.json();
+    tDiv.className='msg ai';
+    if(data.content?.[0]?.text){
+      tDiv.textContent=data.content[0].text;
+    }else{
+      tDiv.textContent='Error: '+(data.error||'unknown')+' — '+JSON.stringify(data.detail||data).slice(0,150);
+    }
+  }catch(e){tDiv.className='msg ai';tDiv.textContent='Connection issue: '+e.message;}
+  chatMessages.scrollTop=chatMessages.scrollHeight;
+}
+
+// Sports
+let sportsLoaded=false;
+function loadSports(){if(sportsLoaded)return;sportsLoaded=true;loadArsenal();loadPLTable();loadPLMatches();loadCL();loadWC();}
+
+function fmtDate(str){
+  if(!str)return'';
+  const d=new Date(str);
+  return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+function matchHTML(m,highlight){
+  const score=m.score?.fullTime?.home!=null?`${m.score.fullTime.home}-${m.score.fullTime.away}`:'-';
+  const status=m.status==='IN_PLAY'?'🔴 LIVE':m.status==='FINISHED'?'FT':fmtDate(m.utcDate).split(' ').slice(0,2).join(' ');
+  const hl=highlight?'style="color:#EF0107;font-weight:700;"':'';
+  return`<div class="score-row"><span class="score-teams" ${hl}>${m.homeTeam.shortName||m.homeTeam.name} vs ${m.awayTeam.shortName||m.awayTeam.name}</span><span class="score-val">${score}</span><span class="score-status">${status}</span></div>`;
+}
+
+async function loadArsenal(){
+  const nEl=document.getElementById('arsenalNext'),lEl=document.getElementById('arsenalLast');
+  try{
+    const [nd,ld]=await Promise.all([
+      football('teams/57/matches?status=SCHEDULED&limit=1'),
+      football('teams/57/matches?status=FINISHED&limit=1')
+    ]);
+    const nm=nd.matches?.[0],lm=ld.matches?.[0];
+    if(nm){nEl.innerHTML=`<div class="match-label">Next Match · ${nm.competition?.name||''}</div><div class="match-teams">${nm.homeTeam.name} vs ${nm.awayTeam.name}</div><div class="match-meta">${fmtDate(nm.utcDate)}</div>`;}
+    else{nEl.innerHTML='<div class="match-label">Next Match</div><div class="match-meta" style="color:var(--muted)">No upcoming fixtures</div>';}
+    if(lm){
+      const score=`${lm.score.fullTime.home} - ${lm.score.fullTime.away}`;
+      const aHome=lm.homeTeam.id===57;
+      const aScore=aHome?lm.score.fullTime.home:lm.score.fullTime.away;
+      const oScore=aHome?lm.score.fullTime.away:lm.score.fullTime.home;
+      const result=aScore>oScore?'✅ WIN':aScore===oScore?'🤝 DRAW':'❌ LOSS';
+      lEl.innerHTML=`<div class="match-label">Last Result · ${lm.competition?.name||''}</div><div class="match-teams">${lm.homeTeam.name} <span class="match-score">${score}</span> ${lm.awayTeam.name}</div><div class="match-meta">${result} · ${fmtDate(lm.utcDate)}</div>`;
+    }else{lEl.innerHTML='<div class="match-label">Last Result</div><div class="match-meta" style="color:var(--muted)">No recent results</div>';}
+  }catch(e){nEl.innerHTML='<div class="match-label">Next Match</div><div class="loading-text">Unavailable</div>';lEl.innerHTML='<div class="match-label">Last Result</div><div class="loading-text">Unavailable</div>';}
+}
+
+async function loadPLTable(){
+  const el=document.getElementById('plTable');
+  try{
+    const d=await football('competitions/PL/standings');
+    const table=d.standings?.[0]?.table?.slice(0,10)||[];
+    el.innerHTML=table.map(t=>`<div class="table-row${t.team.id===57?' arsenal-row':''}"><span class="table-pos">${t.position}</span><span class="table-team">${t.team.id===57?'🔴 ':''}${t.team.shortName||t.team.name}</span><span class="table-gd">${t.goalDifference>0?'+':''}${t.goalDifference}</span><span class="table-pts">${t.points}</span></div>`).join('')||'<div class="loading-text">No data</div>';
+  }catch(e){el.innerHTML='<div class="loading-text">Unavailable</div>';}
+}
+
+async function loadPLMatches(){
+  const el=document.getElementById('plMatches');
+  const today=new Date().toISOString().split('T')[0];
+  try{
+    const d=await football(`competitions/PL/matches?dateFrom=${today}&dateTo=${today}`);
+    const matches=d.matches||[];
+    if(!matches.length){el.innerHTML='<div class="loading-text">No PL matches today</div>';return;}
+    el.innerHTML=matches.map(m=>matchHTML(m,m.homeTeam.id===57||m.awayTeam.id===57)).join('');
+  }catch(e){el.innerHTML='<div class="loading-text">Unavailable</div>';}
+}
+
+async function loadCL(){
+  const el=document.getElementById('clMatches');
+  const today=new Date().toISOString().split('T')[0];
+  try{
+    const d=await football(`competitions/CL/matches?dateFrom=${today}&dateTo=${today}`);
+    const matches=d.matches||[];
+    if(!matches.length){
+      const d2=await football('competitions/CL/matches?status=SCHEDULED&limit=4');
+      const upcoming=d2.matches||[];
+      el.innerHTML=upcoming.length?upcoming.map(m=>matchHTML(m,m.homeTeam.id===57||m.awayTeam.id===57)).join(''):'<div class="loading-text">No CL matches scheduled</div>';
+    }else{el.innerHTML=matches.map(m=>matchHTML(m,m.homeTeam.id===57||m.awayTeam.id===57)).join('');}
+  }catch(e){el.innerHTML='<div class="loading-text">Unavailable</div>';}
+}
+
+async function loadWC(){
+  const el=document.getElementById('wcMatches');
+  const today=new Date().toISOString().split('T')[0];
+  const yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
+  const tomorrow=new Date(Date.now()+86400000).toISOString().split('T')[0];
+  try{
+    const d=await football(`competitions/WC/matches?dateFrom=${yesterday}&dateTo=${tomorrow}`);
+    const matches=d.matches||[];
+    if(!matches.length){el.innerHTML='<div class="loading-text">No World Cup matches in this window</div>';return;}
+    el.innerHTML=matches.slice(0,6).map(m=>matchHTML(m,false)).join('');
+  }catch(e){el.innerHTML='<div class="loading-text">Unavailable — free plan may not cover WC</div>';}
+}
+
+// Canvas
+const canvas=document.getElementById('bg'),ctx=canvas.getContext('2d');
+let W,H,orbs;
+function resize(){
+  W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;
+  orbs=[{x:W*.15,y:H*.18,r:200,color:'#7c3aed',vx:.12,vy:.08},{x:W*.82,y:H*.12,r:170,color:'#06b6d4',vx:-.1,vy:.11},{x:W*.5,y:H*.72,r:240,color:'#a855f7',vx:.07,vy:-.09},{x:W*.88,y:H*.68,r:140,color:'#3b82f6',vx:-.11,vy:-.07},{x:W*.08,y:H*.6,r:130,color:'#ec4899',vx:.09,vy:.06}];
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#07071a';ctx.fillRect(0,0,W,H);
+  orbs.forEach(o=>{
+    const g=ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,o.r);
+    g.addColorStop(0,o.color+'40');g.addColorStop(.5,o.color+'16');g.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(o.x,o.y,o.r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+    o.x+=o.vx;o.y+=o.vy;
+    if(o.x<-o.r||o.x>W+o.r)o.vx*=-1;
+    if(o.y<-o.r||o.y>H+o.r)o.vy*=-1;
+  });
+  requestAnimationFrame(draw);
+}
+window.addEventListener('resize',resize);resize();draw();
+
+// Particles
+const pc=document.getElementById('particles');
+const cols=['#7c3aed','#a855f7','#06b6d4','#3b82f6','#f59e0b','#ec4899'];
+function spawn(){
+  const p=document.createElement('div');p.className='particle';
+  const s=Math.random()*2.5+1,c=cols[Math.floor(Math.random()*cols.length)];
+  const dur=Math.random()*9+6,dl=Math.random()*3;
+  p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;bottom:0;background:${c};box-shadow:0 0 ${s*3}px ${c};animation-duration:${dur}s;animation-delay:${dl}s;`;
+  pc.appendChild(p);setTimeout(()=>p.remove(),(dur+dl)*1000);
+}
+for(let i=0;i<16;i++)spawn();setInterval(spawn,1000);
+</script>
+</body>
+</html>
